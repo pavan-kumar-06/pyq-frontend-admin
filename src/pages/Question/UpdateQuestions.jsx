@@ -1,27 +1,29 @@
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useState, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { BACKEND_URL } from "../../Constants";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 
 function UpdateQuestions() {
+  const navigate = useNavigate();
   const currentUser = useSelector((state) => state.user?.currentUser);
-  const { testId } = useParams();
-
+  const { testId, questionId } = useParams();
   const [testData, setTestData] = useState(null);
   const [formData, setFormData] = useState({
     subject: "maths",
     questionType: "mcq",
     questionFormat: "image",
-    question: "",
+    question: undefined,
     solutionFormat: "image",
-    solution: "",
+    solution: undefined,
     correctAnswer: "",
   });
-  const [selectedButton, setSelectedButton] = useState(null);
+  const [selectedButton, setSelectedButton] = useState(parseInt(questionId - 1));
 
   useEffect(() => {
     fetchTest();
+    console.log(formData);
+    console.log(formData?.question);
   }, []);
 
   const fetchTest = async () => {
@@ -33,12 +35,16 @@ function UpdateQuestions() {
         },
       });
       const data = await response.json();
+      console.log(data);
       if (data.statusCode === 407) {
         //jwt token expired so we will signout the user
         toast.error("Session Expired Please Login Again");
         dispatch(deleteUserSuccess(data));
       }
       setTestData(data.data?.questions);
+      console.log(data.data?.questions);
+      if (data.data?.questions[questionId - 1] !== null) setFormData(data.data?.questions[questionId - 1]);
+      console.log(formData);
     } catch (error) {
       console.error("Error fetching tests:", error);
     }
@@ -54,24 +60,27 @@ function UpdateQuestions() {
 
   const handleButtonClick = (index) => {
     setSelectedButton(index);
-    const newFormData = testData[index] || {
-      // Initialize with empty values if testData[index] is null
-      subject: "maths",
-      questionType: "mcq",
-      questionFormat: "image",
-      question: "",
-      solutionFormat: "image",
-      solution: "",
-      correctAnswer: "",
-    };
-    setFormData(newFormData);
+    if (testData[index] === null) {
+      setFormData({
+        subject: "maths",
+        questionType: "mcq",
+        questionFormat: "image",
+        question: undefined,
+        solutionFormat: "image",
+        solution: undefined,
+        correctAnswer: "",
+      });
+    } else {
+      setFormData(testData[index]);
+    }
+    navigate(`../question/${testId}/${index + 1}`);
   };
 
   const handleImageDelete = async (e, type) => {
     try {
       let imageUrl;
       if (type === "question") imageUrl = formData?.question;
-      else if (type === "solution") imageUrl = formData?.solution;
+      if (type === "solution") imageUrl = formData?.solution;
 
       const response = await fetch(`${BACKEND_URL}/image?url=${encodeURIComponent(imageUrl)}`, {
         method: "DELETE",
@@ -79,14 +88,16 @@ function UpdateQuestions() {
           Authorization: `Bearer ${currentUser?.data?.accessToken}`,
         },
       });
+      console.log(response);
       const data = await response.json();
+      console.log(data);
       if (data.statusCode !== 200) {
         toast.error(data?.message);
       } else {
         toast.success(data?.message);
       }
-      if (type === "question") setFormData({ ...formData, question: "" });
-      else if (type === "solution") setFormData({ ...formData, solution: "" });
+      if (type === "question") setFormData({ ...formData, question: undefined });
+      else if (type === "solution") setFormData({ ...formData, solution: undefined });
     } catch (error) {
       toast.error("Error deleting question image:", error);
     }
@@ -138,10 +149,13 @@ function UpdateQuestions() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/update-question`, {
-        method: "POST",
+      // e.preventDefault();
+      // console.log(formData);
+      // console.log(`${BACKEND_URL}/test/${testId}/questions/${selectedButton}`);
+      const response = await fetch(`${BACKEND_URL}/test/${testId}/questions/${selectedButton}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${currentUser?.data?.accessToken}`,
@@ -149,7 +163,9 @@ function UpdateQuestions() {
         body: JSON.stringify(formData),
       });
       const data = await response.json();
+      // console.log(data);
       setTestData(data);
+      navigate(`../question/${testId}/${questionId}`, { replace: true });
     } catch (error) {
       toast.error("Error updating question:", error);
     }
@@ -158,7 +174,7 @@ function UpdateQuestions() {
   return (
     <div className="flex flex-row space-between">
       <div style={{ width: "600px" }}>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6">
           <div>
             <label htmlFor="subject" className="block text-sm font-medium text-gray-700">
               Subject
@@ -205,7 +221,7 @@ function UpdateQuestions() {
                   </button>
                 </div>
               )}
-              {!formData?.question && (
+              {(formData?.question === undefined || formData?.question === null) && (
                 <div>
                   <input type="file" onChange={(e) => handleImageUpload(e, "question")} className="mt-2 mr-4" />
                 </div>
@@ -252,7 +268,7 @@ function UpdateQuestions() {
             </label>
             <input id="correctAnswer" name="correctAnswer" value={formData?.correctAnswer} onChange={handleChange} type="text" required className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Enter the correct answer..." />
           </div>
-          <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-10">
+          <button onClick={() => handleSubmit()} type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-10">
             Save
           </button>
         </form>

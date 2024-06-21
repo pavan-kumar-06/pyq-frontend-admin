@@ -28,7 +28,7 @@ export default function App() {
           <Route path="/create-test" element={<CreateTest />} />
           <Route path="/update-test/:id" element={<UpdateTest />} />
 
-          <Route path="/question/:testId" element={<UpdateQuestions />} />
+          <Route path="/question/:testId/:questionId" element={<UpdateQuestions />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

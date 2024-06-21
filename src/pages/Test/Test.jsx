@@ -133,7 +133,7 @@ function Test() {
                     <button onClick={() => handleDelete(test._id)} className="red-button">
                       Delete Test
                     </button>
-                    <Link to={{ pathname: `/question/${test._id}` }} className="mr-2">
+                    <Link to={{ pathname: `/question/${test._id}/1` }} className="mr-2">
                       <button className="blue-button">Update Questions</button>
                     </Link>
                   </td>
